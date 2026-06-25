@@ -286,3 +286,71 @@ ORDER BY n.created_at DESC;
 ```
 
 
+# Stage 3
+
+### Is the given query accurate?
+
+The query is functionally correct because it retrieves the unread notifications of a specific student and sorts them by the notification creation time. However, it is not efficient for a large dataset containing millions of notifications.
+
+### Why is this query slow?
+
+There are a few reasons why the query becomes slower as the data grows:
+
+* It uses `SELECT *`, which fetches every column even though the application may only need a few fields.
+* If there is no suitable index, the database performs a full table scan to find unread notifications.
+* Sorting by `createdAt` becomes expensive when a large number of records need to be processed.
+* As the number of notifications increases, the database has to examine more rows before returning the required results.
+
+### What would you change?
+
+I would make the following improvements:
+
+* Retrieve only the required columns instead of using `SELECT *`.
+* Create a composite index on `(student_id, is_read, created_at)` since these columns are used together for filtering and sorting.
+* Continue using pagination so that only a limited number of notifications are returned in each request.
+
+The improved query would be:
+
+```sql
+SELECT
+    n.notification_id,
+    n.title,
+    n.message,
+    n.notification_type,
+    n.created_at
+FROM StudentNotifications sn
+JOIN Notifications n
+ON sn.notification_id = n.notification_id
+WHERE sn.student_id = 1042
+AND sn.is_read = FALSE
+ORDER BY n.created_at ASC;
+```
+
+### What would be the likely computation cost?
+
+Without a suitable index, the query performs a full table scan, resulting in approximately **O(n)** time complexity.
+
+With a composite index on the filtering and sorting columns, the database can locate the required records much faster, reducing the lookup cost to approximately **O(log n)**.
+
+### Is adding indexes on every column a good idea?
+
+No.
+
+Adding indexes to every column is not recommended. While indexes improve read performance, they also consume additional storage and slow down insert, update and delete operations because every index must be maintained.
+
+Indexes should only be created on columns that are frequently used in filtering, sorting or joins.
+
+### Query to find all students who received a Placement notification in the last 7 days
+
+```sql
+SELECT DISTINCT
+    sn.student_id
+FROM StudentNotifications sn
+JOIN Notifications n
+ON sn.notification_id = n.notification_id
+WHERE n.notification_type = 'Placement'
+AND n.created_at >= CURRENT_DATE - INTERVAL '7 days';
+```
+
+---
+
