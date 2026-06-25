@@ -447,3 +447,107 @@ Pagination reduces the amount of data returned by each request, indexing improve
 Together, these approaches significantly reduce database load while providing a faster and smoother experience for students.
 
 
+# Stage 5
+
+The current implementation processes every student one by one. For each student, it sends an email, stores the notification in the database and then pushes the notification to the application.
+
+Although this approach works for a small number of users, it is not suitable for notifying 50,000 students simultaneously.
+
+## Shortcomings
+
+The current implementation has several limitations.
+
+* Every student is processed sequentially, making the entire operation slow.
+* If the email service fails for some students, the remaining students may never receive notifications.
+* A temporary failure in one service can interrupt the complete process.
+* Email delivery, database storage and push notifications are tightly coupled, making recovery difficult.
+* The system cannot efficiently handle large traffic during placement season.
+
+---
+
+## Handling Email Failures
+
+If the email service fails for 200 students, the process should not restart from the beginning.
+
+Instead, the failed requests should be identified and placed into a retry queue.
+
+The retry mechanism should attempt delivery again after a short delay. If the notification still cannot be delivered after multiple attempts, it can be moved to a dead-letter queue for manual investigation.
+
+This ensures that successful notifications are not processed again while failed notifications are handled separately.
+
+---
+
+## Improved Design
+
+I would separate notification creation from notification delivery.
+
+The notification should first be stored in the database to ensure it is not lost.
+
+After the notification is saved successfully, background workers can independently handle email delivery and in-app notifications.
+
+This allows multiple workers to process notifications in parallel, improving both performance and reliability.
+
+---
+
+## Should Database Storage and Email Delivery Happen Together?
+
+No.
+
+Saving the notification in the database and sending the email should be treated as separate operations.
+
+The database acts as the source of truth. Once the notification is stored successfully, it can always be delivered later, even if the email service is temporarily unavailable.
+
+Keeping these operations independent prevents data loss and makes recovery much easier.
+
+---
+
+## Revised Pseudocode
+
+```text
+function notify_all(student_ids, message):
+
+    notification_id = save_notification(message)
+
+    for each student_id in student_ids:
+
+        save_student_notification(student_id, notification_id)
+
+        add_to_email_queue(student_id, notification_id)
+
+        add_to_push_queue(student_id, notification_id)
+```
+
+### Email Worker
+
+```text
+while queue is not empty:
+
+    notification = get_next_email_job()
+
+    try:
+        send_email(notification)
+        mark_email_sent()
+
+    catch:
+        retry(notification)
+```
+
+### Push Notification Worker
+
+```text
+while queue is not empty:
+
+    notification = get_next_push_job()
+
+    push_to_application(notification)
+```
+
+---
+
+## Benefits of the Improved Design
+
+* Faster notification delivery through parallel processing.
+* Email failures do not affect database operations.
+* Failed notifications can be retried without reprocessing successful ones.
+* The system can scale easily during high-traffic events such as placement drives.
+* Notifications remain available inside the application even if the email service is temporarily unavailable.
