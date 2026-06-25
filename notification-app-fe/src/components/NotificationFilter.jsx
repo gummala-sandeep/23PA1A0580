@@ -1,20 +1,23 @@
-import { ToggleButton, ToggleButtonGroup } from "@mui/material";
+import React from "react";
 
 const filters = ["All", "Placement", "Result", "Event"];
 
+/**
+ * Filter component for notifications.
+ * Allows choosing between All, Placement, Result, and Event.
+ */
 export function NotificationFilter({ value, onChange }) {
   return (
-    <ToggleButtonGroup
-      value={value}
-      exclusive
-      size="small"
-      sx={{ flexWrap: "wrap", gap: 0.5 }}
-    >
+    <div className="notification-filter-container">
       {filters.map((type) => (
-        <ToggleButton value={type} sx={{ textTransform: "none", px: 2 }}>
+        <button
+          key={type}
+          className={`filter-button ${value === type ? "active" : ""}`}
+          onClick={() => onChange(type)}
+        >
           {type}
-        </ToggleButton>
+        </button>
       ))}
-    </ToggleButtonGroup>
+    </div>
   );
 }
