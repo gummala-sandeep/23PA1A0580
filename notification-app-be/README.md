@@ -354,3 +354,96 @@ AND n.created_at >= CURRENT_DATE - INTERVAL '7 days';
 
 ---
 
+# Stage 4
+
+### What solution would you suggest?
+
+Fetching notifications from the database every time a page is loaded creates unnecessary database traffic, especially when thousands of students are using the application simultaneously.
+
+Instead of loading all notifications on every request, I would combine pagination, caching and real-time updates to reduce database load while maintaining a good user experience.
+
+### How would you improve performance?
+
+I would improve the system using the following strategies:
+
+**1. Pagination**
+
+Return notifications in smaller batches instead of loading every notification.
+
+**Benefit**
+
+* Faster response time.
+* Lower database load.
+
+**Trade-off**
+
+Users need additional requests to view older notifications.
+
+---
+
+**2. Caching**
+
+Store frequently accessed information such as unread notification counts or recently viewed notifications in Redis.
+
+**Benefit**
+
+* Reduces repeated database queries.
+* Improves response time.
+
+**Trade-off**
+
+Cached data may be temporarily outdated until it is refreshed.
+
+---
+
+**3. Real-Time Notifications**
+
+Use WebSockets to push newly created notifications to connected users instead of repeatedly fetching data from the database.
+
+**Benefit**
+
+* Eliminates unnecessary polling.
+* Notifications appear instantly.
+
+**Trade-off**
+
+Requires maintaining persistent connections, which increases implementation complexity.
+
+---
+
+**4. Database Indexing**
+
+Create indexes on columns that are frequently used for filtering and sorting, such as `student_id`, `is_read` and `created_at`.
+
+**Benefit**
+
+* Faster query execution.
+
+**Trade-off**
+
+Additional storage is required, and write operations become slightly slower.
+
+---
+
+**5. Archive Old Notifications**
+
+Move old notifications that are rarely accessed into an archive table.
+
+**Benefit**
+
+* Keeps the active notification table smaller.
+* Improves query performance.
+
+**Trade-off**
+
+Historical notifications require a separate query if they need to be accessed.
+
+### Which solution would I recommend?
+
+I would use a combination of pagination, database indexing, WebSockets and caching.
+
+Pagination reduces the amount of data returned by each request, indexing improves query performance, WebSockets deliver new notifications instantly, and caching minimizes repeated database access.
+
+Together, these approaches significantly reduce database load while providing a faster and smoother experience for students.
+
+
